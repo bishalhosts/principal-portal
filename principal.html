@@ -144,8 +144,8 @@ async function load() {
     
     const h = r.data[0], days = h.length - 2;
     let t = '<table><tr><th>Roll</th><th>Name</th>' + h.slice(2).map((x, i) => {
-      const parts = x.split('\n');
-      return `<th title="${esc(r.data[1][i + 2])} ${esc(r.data[2][i + 2])}">${esc(parts[0] || '')}<br>${esc(parts[1] || '')}</th>`;
+      const parts = String(x).split('\n');
+      return `<th title="${esc(r.data[1][i + 2] || '')} ${esc(r.data[2][i + 2] || '')}">${esc(parts[0] || '')}<br>${esc(parts[1] || '')}</th>`;
     }).join('') + '<th>P</th><th>A</th><th>%</th></tr>';
     
     r.data.slice(3).forEach(row => { 
