@@ -15,9 +15,9 @@ header p{margin:4px 0 0;opacity:.85;font-size:14px}
 input,select,button{font:inherit;padding:10px;border:1px solid #8a96ab;border-radius:0;margin:4px 4px 4px 0}
 button{background:#12306b;color:#fff;border:0;cursor:pointer}
 button:hover{opacity:.9}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{border:1px solid #d5dbe6;padding:6px 8px;text-align:center;white-space:nowrap}
-th{background:#12306b;color:#fff;position:sticky;top:0;z-index:1}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid #d5dbe6;padding:4px 6px;text-align:center;white-space:nowrap}
+th{background:#12306b;color:#fff;position:sticky;top:0;z-index:1;font-weight:600;font-size:12px;}
 td:nth-child(2){text-align:left}
 .P{background:#d9f2d9}
 .A{background:#f8d0d0}
@@ -143,7 +143,10 @@ async function load() {
     }
     
     const h = r.data[0], days = h.length - 2;
-    let t = '<table><tr><th>Roll</th><th>Name</th>' + h.slice(2).map((x, i) => `<th title="${esc(r.data[1][i + 2])} ${esc(r.data[2][i + 2])}">${esc(x.split(' | ')[0])}<br>${esc(x.split(' | ')[1] || '')}</th>`).join('') + '<th>P</th><th>A</th><th>%</th></tr>';
+    let t = '<table><tr><th>Roll</th><th>Name</th>' + h.slice(2).map((x, i) => {
+      const parts = x.split('\n');
+      return `<th title="${esc(r.data[1][i + 2])} ${esc(r.data[2][i + 2])}">${esc(parts[0] || '')}<br>${esc(parts[1] || '')}</th>`;
+    }).join('') + '<th>P</th><th>A</th><th>%</th></tr>';
     
     r.data.slice(3).forEach(row => { 
       const v = row.slice(2), p = v.filter(x => x == 'P').length, a = v.filter(x => x == 'A').length, pc = p + a ? Math.round(p * 100 / (p + a)) : '-';
