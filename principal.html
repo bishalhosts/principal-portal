@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Principal View</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            font: 15px/1.4 system-ui, sans-serif;
+            background: #eef1f6;
+            color: #1b2433;
+        }
+        .strip {
+            height: 6px;
+            background: #c62828;
+        }
+        header {
+            background: #12306b;
+            color: #fff;
+            text-align: center;
+            padding: 16px 10px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        header p {
+            margin: 4px 0 0;
+            opacity: .85;
+            font-size: 14px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #c9d1de;
+            margin: 14px auto;
+            max-width: 900px;
+            padding: 14px;
+        }
+        input, select, button {
+            font: inherit;
+            padding: 10px;
+            border: 1px solid #8a96ab;
+            border-radius: 0;
+            margin: 4px 4px 4px 0;
+        }
+        button {
+            background: #12306b;
+            color: #fff;
+            border: 0;
+            cursor: pointer;
+        }
+        .t {
+            background: #fff;
+            color: #12306b;
+            border: 1px solid #12306b;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #d5dbe6;
+            padding: 6px 8px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        th {
+            background: #12306b;
+            color: #fff;
+            position: sticky;
+            top: 0;
+        }
+        td:nth-child(2) {
+            text-align: left;
+        }
+        .P {
+            background: #d9f2d9;
+        }
+        .A {
+            background: #f8d0d0;
+        }
+        .low {
+            color: #c62828;
+            font-weight: 700;
+        }
+        .pend {
+            color: #c62828;
+        }
+        .ok {
+            color: #1e8a3e;
+        }
+        .sc {
+            overflow: auto;
+            max-height: 70vh;
+        }
+        #msg {
+            text-align: center;
+            font-weight: 600;
+            color: #c62828;
+            min-height: 22px;
+        }
+        [hidden] {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="strip"></div>
+    <header>
+        <h1 id="school"></h1>
+        <p>Principal view (read only)</p>
+    </header>
+    <div id="msg"></div>
+
+    <div class="card" id="login" style="max-width:420px">
+        <b>Principal code</b>
+        <br>
+        <input id="code" type="password" placeholder="Enter code">
+        <button onclick="login()">Continue</button>
+    </div>
+
+    <div id="app" hidden>
+        <div class="card">
+            <b id="today"></b>
+            <div class="sc">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Class</th>
+                            <th>Status</th>
+                            <th>Teacher</th>
+                            <th>Time</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tb"></tbody>
+                </table>
+            </div>
+            <p id="tot"></p>
+        </div>
+        <div class="card">
+            <b>Records</b>
+            <br>
+            <select id="y"></select>
+            <select id="m"></select>
+            <select id="c"></select>
+            <button onclick="load()">Show</button>
+            <a id="open" target="_blank" hidden>Open in Google Sheets</a>
+            <div class="sc" id="rec"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = 'PASTE_YOUR_WEB_APP_URL_HERE',
+            SCHOOL = 'Your School Name',
+            LOW = 75; // LOW = red below this %
+
+        const $ = id => document.getElementById(id),
+            esc = t => String(t).replace(/[&<>"]/g, c => '&#' + c.charCodeAt(0) + ';');
+
+        let code = sessionStorage.getItem('pcode') || '';
+        $('school').textContent = SCHOOL;
+        document.title = SCHOOL + ' - Principal';
+
+        async function call(o) {
+            o.code = code;
+            const j = await (await fetch(API, {
+                method: 'POST',
+                body: JSON.stringify(o)
+            })).json();
+            if (j.error) throw new Error(j.error);
+            return j;
+        }
+
+        async function login(silent) {
+            if (!silent) code = $('code').value.trim().toUpperCase();
+            try {
+                const r = await call({
+                    action: 'adminToday'
+                });
+                sessionStorage.setItem('pcode', code);
+                $('login').hidden = true;
+                $('app').hidden = false;
+                $('msg').textContent = '';
+                $('today').textContent = 'Today: ' + r.d.label.split(' | ').join(' ') + (r.d.closed ? ' (School closed: ' + r.d.closed + ')' : '');
+                let P = 0,
+                    A = 0,
+                    done = 0;
+                $('tb').innerHTML = r.classes.map(c => {
+                    const t = c.teacher !== undefined;
+                    if (t) {
+                        P += +c.p;
+                        A += +c.a;
+                        done++;
+                    }
+                    return `<tr><td>${esc(c.cls)}</td><td class="${t ? 'ok' : 'pend'}">${t ? 'Taken' : 'Pending'}</td><td>${t ? esc(c.teacher) : ''}</td><td>${t ? esc(c.time) : ''}</td><td>${t ? c.p : ''}</td><td>${t ? c.a : ''}</td></tr>`;
+                }).join('');
+                $('tot').textContent = done + ' of ' + r.classes.length + ' classes done | Present ' + P + ' | Absent ' + A + (P + A ? ' | ' + Math.round(P * 100 / (P + A)) + '%' : '');
+                $('y').innerHTML = r.years.map(y => `<option>${y}</option>`).join('');
+                $('y').value = r.d.b.y;
+                $('m').innerHTML = r.months.map((m, i) => `<option value="${i}">${m}</option>`).join('');
+                $('m').value = r.d.b.m;
+                $('c').innerHTML = r.classes.map(c => `<option>${esc(c.cls)}</option>`).join('');
+            } catch (e) {
+                if (silent) sessionStorage.removeItem('pcode');
+                else $('msg').textContent = e.message;
+            }
+        }
+
+        async function load() {
+            $('rec').textContent = 'Loading...';
+            try {
+                const r = await call({
+                    action: 'adminClass',
+                    y: $('y').value,
+                    m: $('m').value,
+                    cls: $('c').value
+                });
+                $('open').hidden = !r.url;
+                if (r.url) $('open').href = r.url;
+                if (!r.data) {
+                    $('rec').textContent = 'No records for this class and month.';
+                    return;
+                }
+                const h = r.data[0],
+                    days = h.length - 2;
+                let t = '<table><tr><th>Roll</th><th>Name</th>' + h.slice(2).map((x, i) => `<th title="${esc(r.data[1][i + 2])} ${esc(r.data[2][i + 2])}">${esc(x.split(' | ')[0])}</th>`).join('') + '<th>P</th><th>A</th><th>%</th></tr>';
+                r.data.slice(3).forEach(row => {
+                    const v = row.slice(2),
+                        p = v.filter(x => x == 'P').length,
+                        a = v.filter(x => x == 'A').length,
+                        pc = p + a ? Math.round(p * 100 / (p + a)) : '-';
+                    t += `<tr><td>${esc(row[0])}</td><td>${esc(row[1])}</td>${v.map(x => `<td class="${x}">${x}</td>`).join('')}<td>${p}</td><td>${a}</td><td class="${pc !== '-' && pc < LOW ? 'low' : ''}">${pc}</td></tr>`;
+                });
+                $('rec').innerHTML = days ? t + '</table>' : 'No attendance taken yet in this month.';
+            } catch (e) {
+                $('rec').textContent = e.message;
+            }
+        }
+
+        if (code) login(true);
+    </script>
+</body>
+</html>
